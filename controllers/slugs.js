@@ -9,7 +9,7 @@ async function getProductBySlug(request, response) {
             include: [
                 {
                     model: Category,
-                    as: "category"
+                    as: "Category"
                 }
             ]
         });
