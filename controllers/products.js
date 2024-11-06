@@ -81,14 +81,14 @@ function buildWhereClause(filters) {
 // Função para definir o objeto de ordenação com base no parâmetro sortBy
 function getSortObject(sortBy) {
   const sortOptions = {
-    defaultSort: [],
+    defaultSort: ["createdAt", "DESC"], // Ordena por data de criação como padrão
     titleAsc: ["title", "ASC"],
     titleDesc: ["title", "DESC"],
     lowPrice: ["price", "ASC"],
     highPrice: ["price", "DESC"],
   };
 
-  return sortOptions[sortBy] || [];
+  return sortOptions[sortBy] || sortOptions["defaultSort"];  // Garantir que sempre tenha uma ordenação válida
 }
 
 // Função auxiliar para mapear operadores para Sequelize
