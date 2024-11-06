@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { CustomerOrder } = require('../db/db'); // Certifique-se de que o caminho para os modelos Sequelize está correto.
 
 async function createCustomerOrder(request, response) {
   try {
@@ -18,23 +17,23 @@ async function createCustomerOrder(request, response) {
       orderNotice,
       total,
     } = request.body;
-    const corder = await prisma.customer_order.create({
-      data: {
-        name,
-        lastname,
-        phone,
-        email,
-        company,
-        adress,
-        apartment,
-        postalCode,
-        status,
-        city,
-        country,
-        orderNotice,
-        total,
-      },
+
+    const corder = await CustomerOrder.create({
+      name,
+      lastname,
+      phone,
+      email,
+      company,
+      adress,
+      apartment,
+      postalCode,
+      status,
+      city,
+      country,
+      orderNotice,
+      total,
     });
+
     return response.status(201).json(corder);
   } catch (error) {
     console.error("Error creating order:", error);
@@ -62,40 +61,32 @@ async function updateCustomerOrder(request, response) {
       total,
     } = request.body;
 
-    const existingOrder = await prisma.customer_order.findUnique({
-      where: {
-        id: id,
-      },
-    });
+    const existingOrder = await CustomerOrder.findByPk(id);
 
     if (!existingOrder) {
       return response.status(404).json({ error: "Order not found" });
     }
 
-    const updatedOrder = await prisma.customer_order.update({
-      where: {
-        id: existingOrder.id,
-      },
-      data: {
-        name,
-        lastname,
-        phone,
-        email,
-        company,
-        adress,
-        apartment,
-        postalCode,
-        dateTime,
-        status,
-        city,
-        country,
-        orderNotice,
-        total,
-      },
+    const updatedOrder = await existingOrder.update({
+      name,
+      lastname,
+      phone,
+      email,
+      company,
+      adress,
+      apartment,
+      postalCode,
+      dateTime,
+      status,
+      city,
+      country,
+      orderNotice,
+      total,
     });
 
     return response.status(200).json(updatedOrder);
   } catch (error) {
+    console.error("Error updating order:", error);
     return response.status(500).json({ error: "Error updating order" });
   }
 }
@@ -103,36 +94,45 @@ async function updateCustomerOrder(request, response) {
 async function deleteCustomerOrder(request, response) {
   try {
     const { id } = request.params;
-    await prisma.customer_order.delete({
+    const deleted = await CustomerOrder.destroy({
       where: {
         id: id,
       },
     });
-    return response.status(204).send();
+
+    if (deleted) {
+      return response.status(204).send();
+    } else {
+      return response.status(404).json({ error: "Order not found" });
+    }
   } catch (error) {
+    console.error("Error deleting order:", error);
     return response.status(500).json({ error: "Error deleting order" });
   }
 }
 
 async function getCustomerOrder(request, response) {
-  const { id } = request.params;
-  const order = await prisma.customer_order.findUnique({
-    where: {
-      id: id,
-    },
-  });
-  if (!order) {
-    return response.status(404).json({ error: "Order not found" });
+  try {
+    const { id } = request.params;
+    const order = await CustomerOrder.findByPk(id);
+
+    if (!order) {
+      return response.status(404).json({ error: "Order not found" });
+    }
+
+    return response.status(200).json(order);
+  } catch (error) {
+    console.error("Error fetching order:", error);
+    return response.status(500).json({ error: "Error fetching order" });
   }
-  return response.status(200).json(order);
 }
 
 async function getAllOrders(request, response) {
   try {
-    const orders = await prisma.customer_order.findMany({});
+    const orders = await CustomerOrder.findAll();
     return response.json(orders);
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching orders:", error);
     return response.status(500).json({ error: "Error fetching orders" });
   }
 }

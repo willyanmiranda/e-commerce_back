@@ -1,24 +1,25 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { Product } = require("../db/db"); // Assumindo que o modelo Product está definido em models
+const { Op } = require("sequelize");
 
 async function searchProducts(request, response) {
     try {
         const { query } = request.query;
+
         if (!query) {
             return response.status(400).json({ error: "Query parameter is required" });
         }
 
-        const products = await prisma.product.findMany({
+        const products = await Product.findAll({
             where: {
-                OR: [
+                [Op.or]: [
                     {
                         title: {
-                            contains: query
+                            [Op.like]: `%${query}%` // Utiliza LIKE com % para buscar substrings
                         }
                     },
                     {
                         description: {
-                            contains: query
+                            [Op.like]: `%${query}%`
                         }
                     }
                 ]

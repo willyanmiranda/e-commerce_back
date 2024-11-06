@@ -1,27 +1,30 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { Image } = require('../db/db'); // Importa o modelo 'Image' do Sequelize
 
 async function getSingleProductImages(request, response) {
-  const { id } = request.params;
-  const images = await prisma.image.findMany({
-    where: { productID: id },
-  });
-  if (!images) {
-    return response.json({ error: "Images not found" }, { status: 404 });
+  try {
+    const { id } = request.params;
+    const images = await Image.findAll({
+      where: { productID: id },
+    });
+
+    if (!images || images.length === 0) {
+      return response.status(404).json({ error: "Images not found" });
+    }
+    return response.json(images);
+  } catch (error) {
+    console.error("Error fetching images:", error);
+    return response.status(500).json({ error: "Error fetching images" });
   }
-  return response.json(images);
 }
 
 async function createImage(request, response) {
   try {
     const { productID, image } = request.body;
-    const createImage = await prisma.image.create({
-      data: {
-        productID,
-        image,
-      },
+    const newImage = await Image.create({
+      productID,
+      image,
     });
-    return response.status(201).json(createImage);
+    return response.status(201).json(newImage);
   } catch (error) {
     console.error("Error creating image:", error);
     return response.status(500).json({ error: "Error creating image" });
@@ -30,32 +33,20 @@ async function createImage(request, response) {
 
 async function updateImage(request, response) {
   try {
-    const { id } = request.params; // Getting product id from params
+    const { id } = request.params; // ID do produto
     const { productID, image } = request.body;
 
-    // Checking whether photo exists for the given product id
-    const existingImage = await prisma.image.findFirst({
-      where: {
-        productID: id, // Finding photo with a product id
-      },
+    const existingImage = await Image.findOne({
+      where: { productID: id },
     });
 
-    // if photo doesn't exist, return coresponding status code
     if (!existingImage) {
-      return response
-        .status(404)
-        .json({ error: "Image not found for the provided productID" });
+      return response.status(404).json({ error: "Image not found for the provided productID" });
     }
 
-    // Updating photo using coresponding imageID
-    const updatedImage = await prisma.image.update({
-      where: {
-        imageID: existingImage.imageID, // Using imageID of the found existing image
-      },
-      data: {
-        productID: productID,
-        image: image,
-      },
+    const updatedImage = await existingImage.update({
+      productID: productID || existingImage.productID,
+      image: image || existingImage.image,
     });
 
     return response.json(updatedImage);
@@ -68,19 +59,20 @@ async function updateImage(request, response) {
 async function deleteImage(request, response) {
   try {
     const { id } = request.params;
-    await prisma.image.deleteMany({
-      where: {
-        productID: String(id), // Converting id to string
-      },
+    const result = await Image.destroy({
+      where: { productID: id },
     });
+
+    if (result === 0) {
+      return response.status(404).json({ error: "No images found to delete" });
+    }
+
     return response.status(204).send();
   } catch (error) {
     console.error("Error deleting image:", error);
     return response.status(500).json({ error: "Error deleting image" });
   }
 }
-
-
 
 module.exports = {
   getSingleProductImages,

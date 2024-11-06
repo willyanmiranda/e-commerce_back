@@ -1,24 +1,33 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const path = require('path');
+const fs = require('fs');
 
 async function uploadMainImage(req, res) {
-    if (!req.files || Object.keys(req.files).length === 0) {
-      return res.status(400).json({ message: "Nema otpremljenih fajlova" });
-    }
-  
-    // Get file from a request
-    const uploadedFile = req.files.uploadedFile;
-  
-    // Using mv method for moving file to the directory on the server
-    uploadedFile.mv('../public/' + uploadedFile.name, (err) => {
-      if (err) {
-        return res.status(500).send(err);
-      }
-  
-      res.status(200).json({ message: "Fajl je uspešno otpremljen" });
-    });
-  }
+    try {
+        if (!req.files || Object.keys(req.files).length === 0) {
+            return res.status(400).json({ message: "Nenhum arquivo foi enviado" });
+        }
 
-  module.exports = {
+        // Obtém o arquivo do pedido
+        const uploadedFile = req.files.uploadedFile;
+        
+        // Define o caminho de destino para salvar o arquivo
+        const uploadPath = path.join(__dirname, '..', 'public', uploadedFile.name);
+
+        // Move o arquivo para o diretório público
+        uploadedFile.mv(uploadPath, (err) => {
+            if (err) {
+                console.error("Erro ao mover o arquivo:", err);
+                return res.status(500).json({ message: "Erro ao salvar o arquivo" });
+            }
+
+            res.status(200).json({ message: "Arquivo enviado com sucesso", filePath: `/public/${uploadedFile.name}` });
+        });
+    } catch (error) {
+        console.error("Erro no upload da imagem:", error);
+        res.status(500).json({ message: "Erro no upload da imagem" });
+    }
+}
+
+module.exports = {
     uploadMainImage
 };

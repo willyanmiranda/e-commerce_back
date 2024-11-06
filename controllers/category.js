@@ -1,13 +1,10 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { Category } = require("../db/db"); // Certifique-se de que o caminho esteja correto para o arquivo onde os modelos Sequelize foram definidos.
 
 async function createCategory(request, response) {
   try {
     const { name } = request.body;
-    const category = await prisma.category.create({
-      data: {
-        name,
-      },
+    const category = await Category.create({
+      name,
     });
     return response.status(201).json(category);
   } catch (error) {
@@ -21,27 +18,17 @@ async function updateCategory(request, response) {
     const { id } = request.params;
     const { name } = request.body;
 
-    const existingCategory = await prisma.category.findUnique({
-      where: {
-        id: id,
-      },
-    });
+    const existingCategory = await Category.findByPk(id);
 
     if (!existingCategory) {
       return response.status(404).json({ error: "Category not found" });
     }
 
-    const updatedCategory = await prisma.category.update({
-      where: {
-        id: existingCategory.id,
-      },
-      data: {
-        name,
-      },
-    });
+    const updatedCategory = await existingCategory.update({ name });
 
     return response.status(200).json(updatedCategory);
   } catch (error) {
+    console.error("Error updating category:", error);
     return response.status(500).json({ error: "Error updating category" });
   }
 }
@@ -49,36 +36,42 @@ async function updateCategory(request, response) {
 async function deleteCategory(request, response) {
   try {
     const { id } = request.params;
-    await prisma.category.delete({
-      where: {
-        id: id,
-      },
-    });
+    const category = await Category.findByPk(id);
+
+    if (!category) {
+      return response.status(404).json({ error: "Category not found" });
+    }
+
+    await category.destroy();
     return response.status(204).send();
   } catch (error) {
-    console.log(error);
+    console.error("Error deleting category:", error);
     return response.status(500).json({ error: "Error deleting category" });
   }
 }
 
 async function getCategory(request, response) {
-  const { id } = request.params;
-  const category = await prisma.category.findUnique({
-    where: {
-      id: id,
-    },
-  });
-  if (!category) {
-    return response.status(404).json({ error: "Category not found" });
+  try {
+    const { id } = request.params;
+    const category = await Category.findByPk(id);
+
+    if (!category) {
+      return response.status(404).json({ error: "Category not found" });
+    }
+
+    return response.status(200).json(category);
+  } catch (error) {
+    console.error("Error fetching category:", error);
+    return response.status(500).json({ error: "Error fetching category" });
   }
-  return response.status(200).json(category);
 }
 
 async function getAllCategories(request, response) {
   try {
-    const categories = await prisma.category.findMany({});
+    const categories = await Category.findAll();
     return response.json(categories);
   } catch (error) {
+    console.error("Error fetching categories:", error);
     return response.status(500).json({ error: "Error fetching categories" });
   }
 }

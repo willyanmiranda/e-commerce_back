@@ -1,233 +1,109 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const { Product, Category, CustomerOrderProduct } = require("../db/db"); // Assumindo que os modelos estão definidos em models
 
 async function getAllProducts(request, response) {
   const mode = request.query.mode || "";
-  // checking if we are on the admin products page because we don't want to have filtering, sorting and pagination there
-  if(mode === "admin"){
+
+  if (mode === "admin") {
     try {
-      const adminProducts = await prisma.product.findMany({});
+      const adminProducts = await Product.findAll();
       return response.json(adminProducts);
     } catch (error) {
       return response.status(500).json({ error: "Error fetching products" });
     }
-  }else{
-    const dividerLocation = request.url.indexOf("?");
-    let filterObj = {};
-    let sortObj = {};
-    let sortByValue = "defaultSort";
-  
-    // getting current page
-    const page = Number(request.query.page) ? Number(request.query.page) : 1;
-  
-    if (dividerLocation !== -1) {
-      const queryArray = request.url
-        .substring(dividerLocation + 1, request.url.length)
-        .split("&");
-  
-      let filterType;
-      let filterArray = [];
-  
-      for (let i = 0; i < queryArray.length; i++) {
-        // checking whether it is filter mode or price filter
-        if (
-          queryArray[i].indexOf("filters") !== -1 &&
-          queryArray[i].indexOf("price") !== -1
-        ) {
-  
-          // taking price par. Of course I could write it much simpler: filterType="price"
-          filterType = queryArray[i].substring(
-            queryArray[i].indexOf("price"),
-            queryArray[i].indexOf("price") + "price".length
-          );
-        }
-  
-        // checking whether it is filter mode and rating filter
-        if (
-          queryArray[i].indexOf("filters") !== -1 &&
-          queryArray[i].indexOf("rating") !== -1
-        ) {
-  
-          // taking "rating" part. Of course I could write it much simpler: filterType="rating"
-          filterType = queryArray[i].substring(
-            queryArray[i].indexOf("rating"),
-            queryArray[i].indexOf("rating") + "rating".length
-          );
-        }
-  
-        // checking whether it is filter mode and category filter
-        if (
-          queryArray[i].indexOf("filters") !== -1 &&
-          queryArray[i].indexOf("category") !== -1
-        ) {
-          // getting "category" part
-          filterType = "category";
-        }
-  
-        if (
-          queryArray[i].indexOf("filters") !== -1 &&
-          queryArray[i].indexOf("inStock") !== -1
-        ) {
-          // getting "inStock" part.  Of course I could write it much simpler: filterType="inStock"
-          filterType = queryArray[i].substring(
-            queryArray[i].indexOf("inStock"),
-            queryArray[i].indexOf("inStock") + "inStock".length
-          );
-        }
-  
-        if (
-          queryArray[i].indexOf("filters") !== -1 &&
-          queryArray[i].indexOf("outOfStock") !== -1
-        ) {
-          // getting "outOfStock" part.  Of course I could write it much simpler: filterType="outOfStock"
-          filterType = queryArray[i].substring(
-            queryArray[i].indexOf("outOfStock"),
-            queryArray[i].indexOf("outOfStock") + "outOfStock".length
-          );
-        }
-  
-        if (queryArray[i].indexOf("sort") !== -1) {
-          // getting sort value from the query
-          sortByValue = queryArray[i].substring(queryArray[i].indexOf("=") + 1);
-        }
-  
-        // checking whether in the given query filters mode is on
-        if (queryArray[i].indexOf("filters") !== -1) {
-          let filterValue;
-          // checking that it is not filter by category. I am doing it so I can avoid converting string to number
-          if (queryArray[i].indexOf("category") === -1) {
-            // taking value part. It is the part where number value of the query is located and I am converting it to the number type because it is string by default
-            filterValue = parseInt(
-              queryArray[i].substring(
-                queryArray[i].indexOf("=") + 1,
-                queryArray[i].length
-              )
-            );
-          } else {
-            // if it is filter by category
-            filterValue = queryArray[i].substring(
-              queryArray[i].indexOf("=") + 1,
-              queryArray[i].length
-            );
-          }
-  
-          // getting operator for example: lte, gte, gt, lt....
-          const filterOperator = queryArray[i].substring(
-            queryArray[i].indexOf("$") + 1,
-            queryArray[i].indexOf("=") - 1
-          );
-  
-          // All of it I add to the filterArray
-          // example for current state of filterArray:
-          /*
-                  [
-                  { filterType: 'price', filterOperator: 'lte', filterValue: 3000 },
-                  { filterType: 'rating', filterOperator: 'gte', filterValue: 0 }
-                  ]
-                  */
-          filterArray.push({ filterType, filterOperator, filterValue });
-        }
-      }
-      for (let item of filterArray) {
-        filterObj = {
-          ...filterObj,
-          [item.filterType]: {
-            [item.filterOperator]: item.filterValue,
-          },
-        };
-      }
-    }
-  
-    let whereClause = { ...filterObj }; // Include other filters if any
-  
-    // Remove category filter from whereClause and use it separately
-    if (filterObj.category && filterObj.category.equals) {
-      delete whereClause.category; // Remove category filter from whereClause
-    }
-  
-    if (sortByValue === "defaultSort") {
-      sortObj = {};
-    } else if (sortByValue === "titleAsc") {
-      sortObj = {
-        title: "asc",
-      };
-    } else if (sortByValue === "titleDesc") {
-      sortObj = {
-        title: "desc",
-      };
-    } else if (sortByValue === "lowPrice") {
-      sortObj = {
-        price: "asc",
-      };
-    } else if (sortByValue === "highPrice") {
-      sortObj = {
-        price: "desc",
-      };
-    }
-  
-    let products;
-  
-    if (Object.keys(filterObj).length === 0) {
-      products = await prisma.product.findMany({
-        // this is formula for pagination: (page - 1) * limit(take)
-        skip: (page - 1) * 10,
-        take: 12,
-        include: {
-          category: {
-            select: {
-              name: true,
-            },
-          },
-        },
-        orderBy: sortObj,
-      });
-    } else {
-      // Check if category filter is present
-      if (filterObj.category && filterObj.category.equals) {
-        products = await prisma.product.findMany({
-          // this is formula for pagination: (page - 1) * limit(take)
-          skip: (page - 1) * 10,
-          take: 12,
-          include: {
-            category: {
-              select: {
-                name: true,
-              },
-            },
-          },
-          where: {
-            ...whereClause,
-            category: {
-              name: {
-                equals: filterObj.category.equals,
-              },
-            },
-          },
-          orderBy: sortObj,
-        });
-      } else {
-        // If no category filter, use whereClause
-        products = await prisma.product.findMany({
-          // this is formula for pagination: (page - 1) * limit(take)
-          skip: (page - 1) * 10,
-          take: 12,
-          include: {
-            category: {
-              select: {
-                name: true,
-              },
-            },
-          },
-          where: whereClause,
-          orderBy: sortObj,
-        });
-      }
-    }
-  
-    return response.json(products);
   }
-  
+
+  try {
+    const page = Number(request.query.page) || 1;
+    const sortBy = request.query.sort || "defaultSort";
+    const filters = parseFilters(request.query);
+    const sortObj = getSortObject(sortBy);
+    const whereClause = buildWhereClause(filters);
+
+    const products = await Product.findAll({
+      offset: (page - 1) * 10,
+      limit: 12,
+      include: [{
+        model: Category,
+        attributes: ["name"]
+      }],
+      where: whereClause,
+      order: [sortObj],
+    });
+
+    return response.json(products);
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return response.status(500).json({ error: "Error fetching products" });
+  }
 }
+
+// Função para interpretar e criar o objeto de filtros
+function parseFilters(query) {
+  const filters = {};
+  const filterKeys = ["price", "rating", "category", "inStock", "outOfStock"];
+  
+  filterKeys.forEach((key) => {
+    const filterValue = query[`filters[${key}]`];
+    if (filterValue) {
+      filters[key] = filterValue.includes("$")
+        ? extractOperatorAndValue(filterValue)
+        : filterValue;
+    }
+  });
+
+  return filters;
+}
+
+// Função auxiliar para extrair operador e valor do filtro
+function extractOperatorAndValue(value) {
+  const operatorMatch = value.match(/\$(\w+)/);
+  const operator = operatorMatch ? sequelizeOp(operatorMatch[1]) : null;
+  const filterValue = parseFloat(value.split("=").pop());
+  return { operator, value: filterValue };
+}
+
+// Função para construir a cláusula WHERE com base nos filtros
+function buildWhereClause(filters) {
+  const whereClause = {};
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (typeof value === "object") {
+      const { operator, value: filterValue } = value;
+      whereClause[key] = { [operator]: filterValue };
+    } else {
+      whereClause[key] = value;
+    }
+  });
+
+  return whereClause;
+}
+
+// Função para definir o objeto de ordenação com base no parâmetro sortBy
+function getSortObject(sortBy) {
+  const sortOptions = {
+    defaultSort: [],
+    titleAsc: ["title", "ASC"],
+    titleDesc: ["title", "DESC"],
+    lowPrice: ["price", "ASC"],
+    highPrice: ["price", "DESC"],
+  };
+
+  return sortOptions[sortBy] || [];
+}
+
+// Função auxiliar para mapear operadores para Sequelize
+function sequelizeOp(operator) {
+  const opMap = {
+    gte: Sequelize.Op.gte,
+    lte: Sequelize.Op.lte,
+    gt: Sequelize.Op.gt,
+    lt: Sequelize.Op.lt,
+    eq: Sequelize.Op.eq,
+  };
+
+  return opMap[operator] || Sequelize.Op.eq;
+}
+
 
 async function getAllProductsOld(request, response) {
   try {
@@ -404,8 +280,164 @@ async function getProductById(request, response) {
   return response.status(200).json(product);
 }
 
+async function getAllProductsOld(request, response) {
+  try {
+    const products = await Product.findAll({
+      include: {
+        model: Category,
+        attributes: ["name"],
+      },
+    });
+    response.status(200).json(products);
+  } catch (error) {
+    console.log(error);
+    response.status(500).json({ error: "Error fetching products" });
+  }
+}
+
+async function createProduct(request, response) {
+  try {
+    const {
+      slug,
+      title,
+      mainImage,
+      price,
+      description,
+      manufacturer,
+      categoryId,
+      inStock,
+    } = request.body;
+
+    const product = await Product.create({
+      slug,
+      title,
+      mainImage,
+      price,
+      rating: 5, // Valor fixo, como no código original
+      description,
+      manufacturer,
+      categoryId,
+      inStock,
+    });
+
+    response.status(201).json(product);
+  } catch (error) {
+    console.error("Error creating product:", error);
+    response.status(500).json({ error: "Error creating product" });
+  }
+}
+
+async function updateProduct(request, response) {
+  try {
+    const { id } = request.params;
+    const {
+      slug,
+      title,
+      mainImage,
+      price,
+      rating,
+      description,
+      manufacturer,
+      categoryId,
+      inStock,
+    } = request.body;
+
+    const product = await Product.findByPk(id);
+
+    if (!product) {
+      return response.status(404).json({ error: "Product not found" });
+    }
+
+    const updatedProduct = await product.update({
+      slug,
+      title,
+      mainImage,
+      price,
+      rating,
+      description,
+      manufacturer,
+      categoryId,
+      inStock,
+    });
+
+    response.status(200).json(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    response.status(500).json({ error: "Error updating product" });
+  }
+}
+
+async function deleteProduct(request, response) {
+  try {
+    const { id } = request.params;
+
+    const relatedOrderProductItems = await CustomerOrderProduct.findAll({
+      where: { productId: id },
+    });
+
+    if (relatedOrderProductItems.length > 0) {
+      return response
+        .status(400)
+        .json({ error: "Cannot delete product due to foreign key constraint." });
+    }
+
+    await Product.destroy({ where: { id } });
+    response.status(204).send();
+  } catch (error) {
+    console.error("Error deleting product:", error);
+    response.status(500).json({ error: "Error deleting product" });
+  }
+}
+
+async function searchProducts(request, response) {
+  try {
+    const { query } = request.query;
+
+    if (!query) {
+      return response
+        .status(400)
+        .json({ error: "Query parameter is required" });
+    }
+
+    const products = await Product.findAll({
+      where: {
+        [Sequelize.Op.or]: [
+          { title: { [Sequelize.Op.like]: `%${query}%` } },
+          { description: { [Sequelize.Op.like]: `%${query}%` } },
+        ],
+      },
+    });
+
+    response.json(products);
+  } catch (error) {
+    console.error("Error searching products:", error);
+    response.status(500).json({ error: "Error searching products" });
+  }
+}
+
+async function getProductById(request, response) {
+  try {
+    const { id } = request.params;
+    const product = await Product.findByPk(id, {
+      include: {
+        model: Category,
+      },
+    });
+
+    if (!product) {
+      return response.status(404).json({ error: "Product not found" });
+    }
+
+    response.status(200).json(product);
+  } catch (error) {
+    console.error("Error fetching product by ID:", error);
+    response.status(500).json({ error: "Error fetching product" });
+  }
+}
+
 module.exports = {
   getAllProducts,
+  getAllProductsOld,
   createProduct,
   updateProduct,
   deleteProduct,
