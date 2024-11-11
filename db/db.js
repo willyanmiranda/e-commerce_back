@@ -148,7 +148,80 @@ const Wishlist = sequelize.define("Wishlist", {
   userId: DataTypes.UUID,
 });
 
+const Color = sequelize.define("Color", {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  colorName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+});
+
+const Size = sequelize.define("Size", {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  sizeName: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
+  },
+});
+
+const ProductVariation = sequelize.define("ProductVariation", {
+  id: {
+    type: DataTypes.UUID,
+    defaultValue: DataTypes.UUIDV4,
+    primaryKey: true,
+  },
+  productId: {
+    type: DataTypes.UUID,
+    references: {
+      model: Product,
+      key: 'id',
+    },
+  },
+  colorId: {
+    type: DataTypes.UUID,
+    references: {
+      model: Color,
+      key: 'id',
+    },
+  },
+  sizeId: {
+    type: DataTypes.UUID,
+    references: {
+      model: Size,
+      key: 'id',
+    },
+  },
+  price: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  stock: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+});
+
+
 // Associações
+Product.hasMany(ProductVariation, { foreignKey: "productId", onDelete: "CASCADE" });
+ProductVariation.belongsTo(Product, { foreignKey: "productId" });
+
+Color.hasMany(ProductVariation, { foreignKey: "colorId" });
+ProductVariation.belongsTo(Color, { foreignKey: "colorId" });
+
+Size.hasMany(ProductVariation, { foreignKey: "sizeId" });
+ProductVariation.belongsTo(Size, { foreignKey: "sizeId" });
+
 Product.belongsTo(Category, { foreignKey: "categoryId", onDelete: "CASCADE" });
 Category.hasMany(Product, { foreignKey: "categoryId" });
 
@@ -166,6 +239,9 @@ Wishlist.belongsTo(Product, { foreignKey: "productId" });
 
 module.exports = {
   sequelize,
+  Color,
+  Size,
+  ProductVariation,
   Product,
   Image,
   User,
