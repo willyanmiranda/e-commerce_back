@@ -148,33 +148,56 @@ const Wishlist = sequelize.define("Wishlist", {
   userId: DataTypes.UUID,
 });
 
-const Color = sequelize.define("Color", {
+const Option = sequelize.define("Option", {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  colorName: {
+  optionName: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
   },
 });
 
-const Size = sequelize.define("Size", {
+const OptionValue = sequelize.define("OptionValue", {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  sizeName: {
+  optionId: {
+    type: DataTypes.UUID,
+    references: {
+      model: Option,
+      key: "id",
+    },
+  },
+  valueName: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
   },
 });
 
-const ProductVariation = sequelize.define("ProductVariation", {
+const ProductOption = sequelize.define("ProductOption", {
+  productId: {
+    type: DataTypes.UUID,
+    references: {
+      model: Product,
+      key: "id",
+    },
+  },
+  optionId: {
+    type: DataTypes.UUID,
+    references: {
+      model: Option,
+      key: "id",
+    },
+  },
+});
+
+const ProductVariant = sequelize.define("ProductVariant", {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
@@ -184,22 +207,13 @@ const ProductVariation = sequelize.define("ProductVariation", {
     type: DataTypes.UUID,
     references: {
       model: Product,
-      key: 'id',
+      key: "id",
     },
   },
-  colorId: {
-    type: DataTypes.UUID,
-    references: {
-      model: Color,
-      key: 'id',
-    },
-  },
-  sizeId: {
-    type: DataTypes.UUID,
-    references: {
-      model: Size,
-      key: 'id',
-    },
+  skuId: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    unique: true,
   },
   price: {
     type: DataTypes.INTEGER,
@@ -211,16 +225,38 @@ const ProductVariation = sequelize.define("ProductVariation", {
   },
 });
 
+const VariantValue = sequelize.define("VariantValue", {
+  variantId: {
+    type: DataTypes.UUID,
+    references: {
+      model: ProductVariant,
+      key: "id",
+    },
+  },
+  optionValueId: {
+    type: DataTypes.UUID,
+    references: {
+      model: OptionValue,
+      key: "id",
+    },
+  },
+});
 
-// Associações
-Product.hasMany(ProductVariation, { foreignKey: "productId", onDelete: "CASCADE" });
-ProductVariation.belongsTo(Product, { foreignKey: "productId" });
+Option.hasMany(OptionValue, { foreignKey: "optionId", onDelete: "CASCADE" });
+OptionValue.belongsTo(Option, { foreignKey: "optionId" });
 
-Color.hasMany(ProductVariation, { foreignKey: "colorId" });
-ProductVariation.belongsTo(Color, { foreignKey: "colorId" });
+Product.hasMany(ProductOption, { foreignKey: "productId", onDelete: "CASCADE" });
+ProductOption.belongsTo(Product, { foreignKey: "productId" });
+Option.hasMany(ProductOption, { foreignKey: "optionId", onDelete: "CASCADE" });
+ProductOption.belongsTo(Option, { foreignKey: "optionId" });
 
-Size.hasMany(ProductVariation, { foreignKey: "sizeId" });
-ProductVariation.belongsTo(Size, { foreignKey: "sizeId" });
+Product.hasMany(ProductVariant, { foreignKey: "productId", onDelete: "CASCADE" });
+ProductVariant.belongsTo(Product, { foreignKey: "productId" });
+
+ProductVariant.hasMany(VariantValue, { foreignKey: "variantId", onDelete: "CASCADE" });
+VariantValue.belongsTo(ProductVariant, { foreignKey: "variantId" });
+OptionValue.hasMany(VariantValue, { foreignKey: "optionValueId", onDelete: "CASCADE" });
+VariantValue.belongsTo(OptionValue, { foreignKey: "optionValueId" });
 
 Product.belongsTo(Category, { foreignKey: "categoryId", onDelete: "CASCADE" });
 Category.hasMany(Product, { foreignKey: "categoryId" });
@@ -239,9 +275,6 @@ Wishlist.belongsTo(Product, { foreignKey: "productId" });
 
 module.exports = {
   sequelize,
-  Color,
-  Size,
-  ProductVariation,
   Product,
   Image,
   User,
@@ -249,4 +282,9 @@ module.exports = {
   CustomerOrderProduct,
   Category,
   Wishlist,
+  Option,
+  OptionValue,
+  ProductOption,
+  ProductVariant,
+  VariantValue,
 };

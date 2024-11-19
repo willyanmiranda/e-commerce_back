@@ -2,8 +2,8 @@ const express = require("express");
 
 const router = express.Router();
 
-const { getProductVariationsByProductId } = require("../controllers/variables");
+const { getProductVariantsByProductId } = require("../controllers/variables");
 
-router.route("/:productId").get(getProductVariationsByProductId);
+router.route("/:productId").get(getProductVariantsByProductId);
 
 module.exports = router;
