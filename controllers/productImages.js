@@ -1,4 +1,11 @@
-const { Image } = require('../db/db'); // Importa o modelo 'Image' do Sequelize
+const { Image } = require('../db/db');
+const cloudinary = require('cloudinary');
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 async function getSingleProductImages(request, response) {
   try {
@@ -19,15 +26,21 @@ async function getSingleProductImages(request, response) {
 
 async function createImage(request, response) {
   try {
-    const { productID, image } = request.body;
-    const newImage = await Image.create({
-      productID,
-      image,
-    });
-    return response.status(201).json(newImage);
+      const { image, productID } = request.body;
+
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+          folder: "products", 
+      });
+
+      const newImage = await Image.create({
+          productID,
+          image: uploadResponse.secure_url, 
+      });
+
+      return response.status(201).json(newImage);
   } catch (error) {
-    console.error("Error creating image:", error);
-    return response.status(500).json({ error: "Error creating image" });
+      console.error("Error creating image:", error);
+      return response.status(500).json({ error: "Error creating image" });
   }
 }
 
