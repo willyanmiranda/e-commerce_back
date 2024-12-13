@@ -1,5 +1,6 @@
 const { Image } = require('../db/db');
 const cloudinary = require('cloudinary');
+const DatauriParser = require("datauri/parser");
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -24,23 +25,38 @@ async function getSingleProductImages(request, response) {
   }
 }
 
+const path = require("path");
+
+const parser = new DatauriParser();
+
 async function createImage(request, response) {
+  console.log("File:", request.file);  
+  console.log("Body:", request.body); 
+
   try {
-      const { image, productID } = request.body;
+    const { productID } = request.body;
+    const file = request.file;
 
-      const uploadResponse = await cloudinary.uploader.upload(image, {
-          folder: "products", 
-      });
+    if (!file) {
+      return response.status(400).json({ error: "Arquivo não enviado" });
+    }
 
-      const newImage = await Image.create({
-          productID,
-          image: uploadResponse.secure_url, 
-      });
+    const extName = path.extname(file.originalname).toString(); 
+    const file64 = parser.format(extName, file.buffer); 
 
-      return response.status(201).json(newImage);
+    const uploadResponse = await cloudinary.uploader.upload(file64.content, {
+      folder: "products", 
+    });
+
+    const newImage = await Image.create({
+      productID,
+      image: uploadResponse.secure_url,
+    });
+
+    return response.status(201).json(newImage);
   } catch (error) {
-      console.error("Error creating image:", error);
-      return response.status(500).json({ error: "Error creating image" });
+    console.error("Erro ao criar a imagem:", error);
+    return response.status(500).json({ error: "Erro ao criar a imagem" });
   }
 }
 
